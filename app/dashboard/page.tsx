@@ -114,8 +114,8 @@ export default async function DashboardPage() {
     .sort((a: ModuleProgress, b: ModuleProgress) => new Date(b.last_visit).getTime() - new Date(a.last_visit).getTime())
     .slice(0, 3)
     .map((p: ModuleProgress) => {
-      const module = modulesList.find((m: Module) => m.id === p.module_id)
-      return { ...p, moduleTitle: module?.title || 'Unknown Module' }
+      const courseModule = modulesList.find((m: Module) => m.id === p.module_id)
+      return { ...p, moduleTitle: courseModule?.title || 'Unknown Module' }
     })
 
   return (
@@ -239,19 +239,19 @@ export default async function DashboardPage() {
             <span className="text-sm text-gray-600">{stats.totalModules}</span>
           </Link>
           
-          {modulesList.slice(0, 5).map((module: Module) => {
-            const progress = progressMap.get(module.id) as ModuleProgress | undefined
+          {modulesList.slice(0, 5).map((moduleItem: Module) => {
+            const progress = progressMap.get(moduleItem.id) as ModuleProgress | undefined
             const statusColor = progress?.status === 'done' ? 'bg-green-100 text-green-800' 
               : progress?.status === 'in_progress' ? 'bg-yellow-100 text-yellow-800'
               : 'bg-gray-100 text-gray-600'
             
             return (
               <Link 
-                key={module.id}
-                href={`/modules/${module.id}`}
+                key={moduleItem.id}
+                href={`/modules/${moduleItem.id}`}
                 className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
               >
-                <span className="font-medium text-gray-900 truncate">{module.title}</span>
+                <span className="font-medium text-gray-900 truncate">{moduleItem.title}</span>
                 <div className="flex items-center gap-2">
                   {progress && (
                     <span className="text-xs text-gray-500">
