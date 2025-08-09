@@ -1,25 +1,70 @@
-name: Build & Deploy Prebuilt
+name: Build & Deploy Prebuilt (Public-only with lockfile patch)
 
 on: push
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # Force npm to public registry and ignore any committed .npmrc
+      NPM_CONFIG_REGISTRY: https://registry.npmjs.org/
+      NPM_CONFIG_ALWAYS_AUTH: 'false'
+      NPM_CONFIG_USERCONFIG: /dev/null
+      NPM_CONFIG_GLOBALCONFIG: /dev/null
+      CI: 'true'
+
     steps:
       - uses: actions/checkout@v4
 
-      # Configure private registry here (npmrc / tokens from secrets)
       - name: Use Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
           registry-url: 'https://registry.npmjs.org/'
 
-      - run: npm ci
-      - run: npm run build
+      # 1) Patch lockfile: replace private registry URLs with public npm
+      - name: Patch package-lock.json to public registry
+        run: |
+          # COMMON PRIVATE REGISTRIES — add/remove lines to match yours
+          sed -i 's#https://npm.pkg.github.com/#https://registry.npmjs.org/#g' package-lock.json
+          sed -i 's#https://pkgs.dev.azure.com/[^"]*#https://registry.npmjs.org/#g' package-lock.json
+          sed -i 's#https://nexus.your-company.com/[^"]*#https://registry.npmjs.org/#g' package-lock.json
+          # If you know your exact domain, add it similarly:
+          # sed -i 's#https://<your-private-domain>/[^"]*#https://registry.npmjs.org/#g' package-lock.json
 
-      # Prebuild for Vercel (no install on Vercel)
-      - run: npm i -g vercel
-      - run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
-      - run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
-      - run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+      # 2) Fail fast if any private URLs are still present
+      - name: Verify no private registry URLs remain
+        run: |
+          if grep -E 'https://(npm\.pkg\.github\.com|pkgs\.dev\.azure\.com|nexus\.your-company\.com)' -n package-lock.json; then
+            echo "❌ Private registry URLs still present in package-lock.json. Add a sed rule above for your domain."
+            exit 1
+          else
+            echo "✅ Lockfile looks public-only."
+          fi
+
+      # 3) (Optional) show effective npm config for debugging
+      - name: Show npm config
+        run: |
+          npm config get registry
+          npm config list
+
+      # 4) Install and build
+      # If your production build does not need devDeps, you can use: npm ci --omit=dev
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      # 5) Vercel prebuilt deploy
+      - name: Install Vercel CLI
+        run: npm i -g vercel
+
+      - name: Pull Vercel env (Production)
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build with Vercel locally
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy prebuilt to Vercel
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
