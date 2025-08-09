@@ -15,9 +15,6 @@ jobs:
           node-version: 20
           registry-url: 'https://registry.npmjs.org/'
 
-      - name: Configure npm auth (example for npmjs)
-        run: echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
-
       - run: npm ci
       - run: npm run build
 
