@@ -8,12 +8,5 @@ const nextConfig = {
   },
 };
 
-module.exports = {
-  images: {
-    remotePatterns: [
-      { protocol: 'https', hostname: '**.supabase.co' }
-    ]
-  }
-}
 
 module.exports = nextConfig;
