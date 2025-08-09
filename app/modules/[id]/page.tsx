@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { Breadcrumbs } from '@/components/Breadcrumbs'
+import { SectionCard } from '@/components/SectionCard'
 
 type Section = { id: string; title: string; order: number }
 type Module = { id: string; title: string; description: string | null }
@@ -127,50 +128,14 @@ export default async function ModuleDetail({ params }: { params: { id: string } 
             const sectionStatus = sectionProgressMap.get(s.id) || 'not_started'
             const isCurrentSection = moduleProgress?.current_section_id === s.id
             
-            const sectionStatusColors: Record<string, string> = {
-              'not_started': 'bg-gray-100 text-gray-600',
-              'in_progress': 'bg-yellow-100 text-yellow-800', 
-              'done': 'bg-green-100 text-green-800',
-              'skipped': 'bg-orange-100 text-orange-700'
-            }
-            
-            const sectionStatusLabels: Record<string, string> = {
-              'not_started': 'Not Started',
-              'in_progress': 'In Progress',
-              'done': 'Completed', 
-              'skipped': 'Skipped'
-            }
-            
             return (
-              <li key={s.id} className={`group relative rounded-lg border p-3 bg-white flex items-center justify-between transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-primary/60 focus-within:ring-2 focus-within:ring-primary/20 ${isCurrentSection ? 'border-primary/40 bg-primary/5' : 'border-gray-300'}`}>
-                <div className="flex items-center gap-3">
-                  <div className="text-gray-900 group-hover:text-primary font-medium">{s.title}</div>
-                  {isCurrentSection && (
-                    <span className="text-xs px-2 py-1 rounded-full bg-primary text-white font-medium">
-                      Current
-                    </span>
-                  )}
-                  <span className={`text-xs px-2 py-1 rounded-full font-medium ${sectionStatusColors[sectionStatus]}`}>
-                    {sectionStatusLabels[sectionStatus]}
-                  </span>
-                  {rating && (
-                    <div className="flex items-center gap-1">
-                      <div className="flex">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <span key={star} className={`text-sm ${star <= rating ? 'text-yellow-400' : 'text-gray-300'}`}>
-                            ★
-                          </span>
-                        ))}
-                      </div>
-                      <span className="text-xs text-gray-500">({rating}/5)</span>
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500">#{s.order}</span>
-                </div>
-                <Link aria-label={`Open ${s.title}`} className="absolute inset-0 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40" href={`/sections/${s.id}`} />
-              </li>
+              <SectionCard
+                key={s.id}
+                section={s}
+                status={sectionStatus}
+                isCurrentSection={isCurrentSection}
+                rating={rating}
+              />
             )
           })}
           {(!sections || sections.length === 0) && (

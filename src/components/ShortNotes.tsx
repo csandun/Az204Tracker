@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
@@ -30,6 +30,8 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
   const [open, setOpen] = useState(false)
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
+  const [loading, setLoading] = useState(true) // Add loading state
+  const [attachmentsLoading, setAttachmentsLoading] = useState(false) // Add attachments loading state
   const [replyTo, setReplyTo] = useState<string | null>(null)
   const [editId, setEditId] = useState<string | null>(null)
   const [attachments, setAttachments] = useState<Record<string, FileAttachment[]>>({})
@@ -45,29 +47,36 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
     }
   }, [items])
 
-  async function load() {
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    const { data } = await supabase
-      .from('short_notes')
-      .select('id,text,is_done,sort_order,parent_id,created_at,updated_at')
-      .eq('user_id', user.id)
-      .eq('section_id', sectionId)
-      .order('is_done', { ascending: true })
-      .order('created_at', { ascending: false }) // Most recent first
-    setItems(data ?? [])
-  }
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      const { data } = await supabase
+        .from('short_notes')
+        .select('id,text,is_done,sort_order,parent_id,created_at,updated_at')
+        .eq('user_id', user.id)
+        .eq('section_id', sectionId)
+        .order('is_done', { ascending: true })
+        .order('created_at', { ascending: false }) // Most recent first
+      setItems(data ?? [])
+    } catch (error) {
+      console.error('Error loading notes:', error)
+    } finally {
+      setLoading(false)
+    }
+  }, [sectionId])
 
-  async function loadAttachments() {
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    
-    // Only load attachments if we have items
+  const loadAttachments = useCallback(async () => {
     if (items.length === 0) return
     
+    setAttachmentsLoading(true)
     try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      
       console.log('Loading attachments for items:', items.map(item => item.id))
       const { data, error } = await supabase
         .from('short_note_attachments')
@@ -100,9 +109,23 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
         setAttachments(attachmentMap)
       }
     } catch (error) {
-      console.log('Error loading attachments:', error)
+      console.error('Error loading attachments:', error)
+    } finally {
+      setAttachmentsLoading(false)
     }
-  }  async function add() {
+  }, [items])
+
+  useEffect(() => { 
+    void load() 
+  }, [sectionId, load])
+
+  useEffect(() => {
+    if (items.length > 0) {
+      void loadAttachments()
+    }
+  }, [items, loadAttachments])
+
+  async function add() {
     if (!text.trim()) return
     setBusy(true)
     const supabase = createClient()
@@ -166,7 +189,7 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
     try {
       await supabase.from('short_note_attachments').delete().eq('short_note_id', id)
     } catch (error) {
-      console.log('No attachments to delete (table not ready)')
+      console.log('Error deleting attachments:', error)
     }
     
     await supabase.from('short_notes').delete().eq('id', id)
@@ -379,9 +402,16 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
             </div>
             <h3 className="text-lg font-semibold tracking-tight">Short Notes</h3>
           </div>
-          {items.length > 0 && (
+          {(loading || items.length > 0) && (
             <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
-              {items.length} note{items.length !== 1 ? 's' : ''}
+              {loading ? (
+                <div className="flex items-center gap-1">
+                  <div className="animate-spin rounded-full h-3 w-3 border-b border-gray-400"></div>
+                  <span>Loading...</span>
+                </div>
+              ) : (
+                `${items.length} note${items.length !== 1 ? 's' : ''}`
+              )}
             </span>
           )}
          
@@ -398,7 +428,32 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
       </div>
       <Thread parentId={null} />
       
-      {items.length === 0 && (
+      {loading ? (
+        <div className="space-y-2">
+          {/* Loading skeleton */}
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="rounded-lg border border-gray-200 bg-white shadow-sm p-4">
+              <div className="animate-pulse">
+                <div className="flex space-x-4">
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                    <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+                  </div>
+                </div>
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <div className="flex justify-between">
+                    <div className="h-3 bg-gray-200 rounded w-24"></div>
+                    <div className="flex space-x-2">
+                      <div className="h-6 bg-gray-200 rounded w-16"></div>
+                      <div className="h-6 bg-gray-200 rounded w-16"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : items.length === 0 ? (
         <div className="text-center py-8">
           <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gray-100 flex items-center justify-center">
             <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -407,6 +462,16 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
           </div>
           <p className="text-gray-500 mb-2">No notes yet</p>
           <p className="text-sm text-gray-400">Create your first note to get started</p>
+        </div>
+      ) : null}
+
+      {/* Show attachments loading indicator */}
+      {attachmentsLoading && (
+        <div className="flex items-center justify-center py-2">
+          <div className="flex items-center gap-2 text-sm text-gray-500">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-400"></div>
+            <span>Loading attachments...</span>
+          </div>
         </div>
       )}
 

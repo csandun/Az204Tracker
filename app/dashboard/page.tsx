@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
+import { NavigationCard } from '@/components/NavigationCard'
+import { LoadingButton } from '@/components/LoadingButton'
 
 interface Module {
   id: string
@@ -175,12 +177,12 @@ export default async function DashboardPage() {
               <div className="font-medium text-gray-900">{currentModule.title}</div>
               <div className="text-sm text-gray-600">{currentModule.sections_count} sections</div>
             </div>
-            <Link 
+            <LoadingButton 
               href={`/modules/${currentModule.id}`}
-              className="inline-block px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium"
             >
               Continue Module
-            </Link>
+            </LoadingButton>
           </div>
         )}
 
@@ -193,12 +195,12 @@ export default async function DashboardPage() {
               <div className="font-medium text-gray-900">{nextModule.title}</div>
               <div className="text-sm text-gray-600">{nextModule.sections_count} sections</div>
             </div>
-            <Link 
+            <LoadingButton 
               href={`/modules/${nextModule.id}`}
-              className="inline-block px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
             >
               Start Module
-            </Link>
+            </LoadingButton>
           </div>
         )}
       </div>
@@ -231,13 +233,9 @@ export default async function DashboardPage() {
         <div className="h-1.5 w-12 bg-primary rounded-full mb-3" />
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Navigation</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <Link 
-            href="/modules"
-            className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-          >
-            <span className="font-medium text-gray-900">All Modules</span>
+          <NavigationCard href="/modules" title="All Modules">
             <span className="text-sm text-gray-600">{stats.totalModules}</span>
-          </Link>
+          </NavigationCard>
           
           {modulesList.slice(0, 5).map((moduleItem: Module) => {
             const progress = progressMap.get(moduleItem.id) as ModuleProgress | undefined
@@ -246,12 +244,11 @@ export default async function DashboardPage() {
               : 'bg-gray-100 text-gray-600'
             
             return (
-              <Link 
+              <NavigationCard 
                 key={moduleItem.id}
                 href={`/modules/${moduleItem.id}`}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                title={moduleItem.title}
               >
-                <span className="font-medium text-gray-900 truncate">{moduleItem.title}</span>
                 <div className="flex items-center gap-2">
                   {progress && (
                     <span className="text-xs text-gray-500">
@@ -262,7 +259,7 @@ export default async function DashboardPage() {
                     {progress?.status?.replace('_', ' ') || 'not started'}
                   </span>
                 </div>
-              </Link>
+              </NavigationCard>
             )
           })}
         </div>
