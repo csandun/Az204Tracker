@@ -13,6 +13,7 @@ export default function SignUpPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
@@ -22,11 +23,32 @@ export default function SignUpPage() {
     if (!parsed.success) { setError('Invalid email or password'); return }
     setLoading(true)
     setError(null)
+    setSuccess(null)
     const supabase = createClient()
-    const { error } = await supabase.auth.signUp({ email, password })
+    const { data, error } = await supabase.auth.signUp({ 
+      email, 
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/dashboard`
+      }
+    })
     setLoading(false)
-    if (error) { setError(error.message); return }
-    router.replace('/dashboard')
+    if (error) { 
+      setError(error.message); 
+      return 
+    }
+    
+    // Check if the user was created and is confirmed
+    if (data.user) {
+      if (data.user.email_confirmed_at) {
+        // User is already confirmed, redirect to dashboard
+        setSuccess('Account created successfully! Redirecting...')
+        setTimeout(() => router.replace('/dashboard'), 1000)
+      } else {
+        // User needs to confirm email
+        setSuccess('Account created! Please check your email and click the confirmation link to complete registration.')
+      }
+    }
   }
 
   return (
@@ -42,8 +64,19 @@ export default function SignUpPage() {
           <input className="w-full rounded-lg bg-white border border-border px-3 py-2" type="password" value={password} onChange={e=>setPassword(e.target.value)} required />
         </div>
         {error && <p className="text-red-600 text-sm">{error}</p>}
-        <button disabled={loading} className="px-4 py-2 rounded-lg bg-primary text-white disabled:opacity-50">{loading ? 'Creating…' : 'Create account'}</button>
+        {success && <p className="text-green-600 text-sm">{success}</p>}
+        <button disabled={loading} className="w-full px-4 py-2 rounded-lg bg-primary text-white disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/90 transition-colors">
+          {loading ? 'Creating account...' : 'Create account'}
+        </button>
       </form>
+      <div className="mt-4 text-center">
+        <p className="text-sm text-gray-600">
+          Already have an account?{' '}
+          <a href="/signin" className="text-primary hover:text-primary/80 font-medium">
+            Sign in
+          </a>
+        </p>
+      </div>
     </main>
   )
 }

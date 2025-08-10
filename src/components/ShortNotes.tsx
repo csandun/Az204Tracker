@@ -25,6 +25,8 @@ type FileAttachment = {
   created_at: string
 }
 
+type SortOption = 'newest' | 'oldest' | 'updated_newest' | 'updated_oldest'
+
 export function ShortNotes({ sectionId }: { sectionId: string }) {
   const [items, setItems] = useState<Note[]>([])
   const [open, setOpen] = useState(false)
@@ -36,6 +38,7 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
   const [editId, setEditId] = useState<string | null>(null)
   const [attachments, setAttachments] = useState<Record<string, FileAttachment[]>>({})
   const [pendingAttachments, setPendingAttachments] = useState<FileAttachment[]>([])
+  const [sortBy, setSortBy] = useState<SortOption>('newest')
 
   useEffect(() => { 
     void load() 
@@ -67,6 +70,48 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
       setLoading(false)
     }
   }, [sectionId])
+
+  // Sort items based on selected sort option
+  const sortedItems = useMemo(() => {
+    const itemsCopy = [...items]
+    
+    switch (sortBy) {
+      case 'newest':
+        return itemsCopy.sort((a, b) => {
+          if (!a.created_at && !b.created_at) return 0
+          if (!a.created_at) return 1
+          if (!b.created_at) return -1
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        })
+      case 'oldest':
+        return itemsCopy.sort((a, b) => {
+          if (!a.created_at && !b.created_at) return 0
+          if (!a.created_at) return 1
+          if (!b.created_at) return -1
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        })
+      case 'updated_newest':
+        return itemsCopy.sort((a, b) => {
+          const aDate = a.updated_at || a.created_at
+          const bDate = b.updated_at || b.created_at
+          if (!aDate && !bDate) return 0
+          if (!aDate) return 1
+          if (!bDate) return -1
+          return new Date(bDate).getTime() - new Date(aDate).getTime()
+        })
+      case 'updated_oldest':
+        return itemsCopy.sort((a, b) => {
+          const aDate = a.updated_at || a.created_at
+          const bDate = b.updated_at || b.created_at
+          if (!aDate && !bDate) return 0
+          if (!aDate) return 1
+          if (!bDate) return -1
+          return new Date(aDate).getTime() - new Date(bDate).getTime()
+        })
+      default:
+        return itemsCopy
+    }
+  }, [items, sortBy])
 
   const loadAttachments = useCallback(async () => {
     if (items.length === 0) return
@@ -314,13 +359,13 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
 
   const tree = useMemo(() => {
     const byParent: Record<string, Note[]> = {}
-    for (const n of items) {
+    for (const n of sortedItems) {
       const key = n.parent_id ?? 'root'
       byParent[key] = byParent[key] || []
       byParent[key].push(n)
     }
     return byParent
-  }, [items])
+  }, [sortedItems])
 
   function Thread({ parentId }: { parentId: string | null }) {
     const children = (tree[parentId ?? 'root'] || [])
@@ -414,17 +459,35 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
               )}
             </span>
           )}
-         
         </div>
-        <button 
-          className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white shadow-sm hover:shadow-md hover:border-primary/60 transition-all duration-200 hover:-translate-y-0.5" 
-          onClick={() => setOpen(true)}
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-          </svg>
-          Add Note
-        </button>
+        
+        <div className="flex items-center gap-3">
+          {/* Sort Dropdown */}
+          {items.length > 1 && (
+            <div className="relative">
+              <select 
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as SortOption)}
+                className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white shadow-sm hover:shadow-md hover:border-primary/60 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary cursor-pointer"
+              >
+                <option value="newest">📅 Newest First</option>
+                <option value="oldest">📅 Oldest First</option>
+                <option value="updated_newest">✏️ Recently Updated</option>
+                <option value="updated_oldest">✏️ Least Updated</option>
+              </select>
+            </div>
+          )}
+          
+          <button 
+            className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white shadow-sm hover:shadow-md hover:border-primary/60 transition-all duration-200 hover:-translate-y-0.5" 
+            onClick={() => setOpen(true)}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Add Note
+          </button>
+        </div>
       </div>
       <Thread parentId={null} />
       
