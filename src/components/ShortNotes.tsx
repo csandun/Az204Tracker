@@ -14,6 +14,7 @@ type Note = {
   parent_id: string | null; 
   created_at?: string | null;
   updated_at?: string | null;
+  guest_name?: string | null;
 }
 
 type FileAttachment = {
@@ -39,10 +40,22 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
   const [attachments, setAttachments] = useState<Record<string, FileAttachment[]>>({})
   const [pendingAttachments, setPendingAttachments] = useState<FileAttachment[]>([])
   const [sortBy, setSortBy] = useState<SortOption>('newest')
+  const [user, setUser] = useState<any>(null)
+  const [guestName, setGuestName] = useState('')
 
   useEffect(() => { 
     void load() 
   }, [sectionId])
+
+  useEffect(() => {
+    // Get user authentication status
+    const getUser = async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      setUser(user)
+    }
+    void getUser()
+  }, [])
 
   useEffect(() => {
     if (items.length > 0) {
@@ -54,12 +67,11 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
     setLoading(true)
     try {
       const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) return
+      
+      // Load all notes for this section, regardless of authentication status
       const { data } = await supabase
         .from('short_notes')
-        .select('id,text,is_done,sort_order,parent_id,created_at,updated_at')
-        .eq('user_id', user.id)
+        .select('id,text,is_done,sort_order,parent_id,created_at,updated_at,guest_name')
         .eq('section_id', sectionId)
         .order('is_done', { ascending: true })
         .order('created_at', { ascending: false }) // Most recent first
@@ -175,7 +187,29 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
     setBusy(true)
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { setBusy(false); return }
+    
+    // For non-authenticated users, only allow replies and require guest name
+    if (!user) {
+      if (!replyTo) {
+        alert('You must be signed in to add new notes. Guests can only reply to existing notes.')
+        setBusy(false)
+        setOpen(false)
+        return
+      }
+      if (!guestName.trim()) {
+        alert('Please enter your name to post as a guest.')
+        setBusy(false)
+        return
+      }
+    }
+    
+    // For editing, require authentication
+    if (editId && !user) {
+      alert('You must be signed in to edit notes.')
+      setBusy(false)
+      setOpen(false)
+      return
+    }
     
     let error
     let noteId = editId
@@ -183,9 +217,24 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
     if (editId) {
       ;({ error } = await supabase.from('short_notes').update({ text }).eq('id', editId))
     } else {
+      // Prepare insert data based on authentication status
+      const insertData: any = {
+        section_id: sectionId, 
+        text, 
+        parent_id: replyTo
+      }
+      
+      if (user) {
+        // Authenticated user
+        insertData.user_id = user.id
+      } else {
+        // Guest user - only for replies
+        insertData.guest_name = guestName.trim()
+      }
+      
       const { data, error: insertError } = await supabase
         .from('short_notes')
-        .insert({ user_id: user.id, section_id: sectionId, text, parent_id: replyTo })
+        .insert(insertData)
         .select('id')
         .single()
       
@@ -212,6 +261,7 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
     
     if (!error) { 
       setText('')
+      setGuestName('')
       setPendingAttachments([])
       setOpen(false)
       setEditId(null)
@@ -379,6 +429,14 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
               
               <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
                 <div className="flex items-center gap-3">
+                  {i.guest_name && (
+                    <span className="flex items-center gap-1 text-blue-600">
+                      <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      by {i.guest_name} (guest)
+                    </span>
+                  )}
                   {i.created_at && (
                     <span className="flex items-center gap-1">
                       <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -408,23 +466,27 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
                   >
                     💬 Reply
                   </button>
-                  <button 
-                    className="hover:text-amber-600 transition-colors px-2 py-1 rounded hover:bg-amber-50" 
-                    onClick={() => { 
-                      setEditId(i.id); 
-                      setText(i.text); 
-                      setReplyTo(null); 
-                      setOpen(true) 
-                    }}
-                  >
-                    ✏️ Edit
-                  </button>
-                  <button 
-                    className="hover:text-red-600 transition-colors px-2 py-1 rounded hover:bg-red-50" 
-                    onClick={() => remove(i.id)}
-                  >
-                    🗑️ Delete
-                  </button>
+                  {user && (
+                    <>
+                      <button 
+                        className="hover:text-amber-600 transition-colors px-2 py-1 rounded hover:bg-amber-50" 
+                        onClick={() => { 
+                          setEditId(i.id); 
+                          setText(i.text); 
+                          setReplyTo(null); 
+                          setOpen(true) 
+                        }}
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button 
+                        className="hover:text-red-600 transition-colors px-2 py-1 rounded hover:bg-red-50" 
+                        onClick={() => remove(i.id)}
+                      >
+                        🗑️ Delete
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -478,15 +540,17 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
             </div>
           )}
           
-          <button 
-            className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white shadow-sm hover:shadow-md hover:border-primary/60 transition-all duration-200 hover:-translate-y-0.5" 
-            onClick={() => setOpen(true)}
-          >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Add Note
-          </button>
+          {user && (
+            <button 
+              className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-gray-300 bg-white shadow-sm hover:shadow-md hover:border-primary/60 transition-all duration-200 hover:-translate-y-0.5" 
+              onClick={() => setOpen(true)}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Add Note
+            </button>
+          )}
         </div>
       </div>
       <Thread parentId={null} />
@@ -538,7 +602,7 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
         </div>
       )}
 
-      {open && (
+      {open && (user || replyTo) && (
         <div className="fixed inset-0 bg-black/30 backdrop-blur-[2px] flex items-center justify-center z-50 p-4">
           <div className="w-full max-w-4xl max-h-[90vh] rounded-xl border border-gray-300 bg-white shadow-xl flex flex-col">
             <div className="p-6 border-b border-gray-200">
@@ -552,7 +616,24 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
               )}
             </div>
             
-            <div className="flex-1 p-6 overflow-hidden">
+            <div className="flex-1 p-6 overflow-hidden space-y-4">
+              {!user && replyTo && (
+                <div>
+                  <label htmlFor="guestName" className="block text-sm font-medium text-gray-700 mb-1">
+                    Your Name (required for guests)
+                  </label>
+                  <input
+                    id="guestName"
+                    type="text"
+                    value={guestName}
+                    onChange={(e) => setGuestName(e.target.value)}
+                    placeholder="Enter your name"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    maxLength={50}
+                  />
+                </div>
+              )}
+              
               <MarkdownEditor
                 value={text}
                 onChange={setText}
@@ -574,6 +655,7 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
                   setEditId(null); 
                   setReplyTo(null); 
                   setText('');
+                  setGuestName('');
                   setPendingAttachments([]);
                 }}
               >

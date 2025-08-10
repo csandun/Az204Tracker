@@ -29,7 +29,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
               {!hasSession && (
                 <>
                   <a className="hover:text-gray-900" href="/signin">Sign in</a>
-                  <a className="hover:text-gray-900" href="/signup">Sign up</a>
+                  {/* <a className="hover:text-gray-900" href="/signup">Sign up</a> */} 
                 </>
               )}
               {hasSession && (
