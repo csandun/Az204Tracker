@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 export function ProgressControls({ moduleId, sectionId }: { moduleId: string; sectionId: string }) {
@@ -7,11 +7,7 @@ export function ProgressControls({ moduleId, sectionId }: { moduleId: string; se
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    loadStatus()
-  }, [sectionId]) // Changed from moduleId to sectionId
-
-  async function loadStatus() {
+  const loadStatus = useCallback(async () => {
     try {
       const supabase = createClient()
       const { data: { user } } = await supabase.auth.getUser()
@@ -31,7 +27,11 @@ export function ProgressControls({ moduleId, sectionId }: { moduleId: string; se
     } catch (err) {
       console.error('Error loading section progress status:', err)
     }
-  }
+  }, [sectionId])
+
+  useEffect(() => {
+    loadStatus()
+  }, [loadStatus])
 
   async function update(newStatus: 'not_started'|'in_progress'|'done'|'skipped') {
     setError(null)

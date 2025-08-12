@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 export type Resource = { id: string; title: string; url: string; type: string }
@@ -14,7 +14,7 @@ export function ResourcesManager({ moduleId, sectionId }: { moduleId: string; se
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true)
     const { data, error } = await supabase
       .from('resources')
@@ -23,9 +23,9 @@ export function ResourcesManager({ moduleId, sectionId }: { moduleId: string; se
       .order('title', { ascending: true })
     if (!error) setResources(data || [])
     setLoading(false)
-  }
+  }, [moduleId, sectionId, supabase])
 
-  useEffect(() => { void load() }, [moduleId, sectionId])
+  useEffect(() => { void load() }, [load])
 
   async function addResource() {
     setError(null)

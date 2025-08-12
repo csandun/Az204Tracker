@@ -6,6 +6,16 @@ const nextConfig = {
       bodySizeLimit: '2mb'
     }
   },
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'rxqxplrxbijssnmvyuav.supabase.co',
+        port: '',
+        pathname: '/storage/v1/object/sign/**',
+      },
+    ],
+  },
 };
 
 

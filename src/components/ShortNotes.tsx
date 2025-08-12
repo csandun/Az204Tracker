@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import Image from 'next/image'
 import { MarkdownEditor } from './MarkdownEditor'
 import { FileAttachments } from './FileAttachments'
 
@@ -43,10 +44,6 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
   const [user, setUser] = useState<any>(null)
   const [guestName, setGuestName] = useState('')
 
-  useEffect(() => { 
-    void load() 
-  }, [sectionId])
-
   useEffect(() => {
     // Get user authentication status
     const getUser = async () => {
@@ -56,12 +53,6 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
     }
     void getUser()
   }, [])
-
-  useEffect(() => {
-    if (items.length > 0) {
-      void loadAttachments()
-    }
-  }, [items])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -83,47 +74,9 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
     }
   }, [sectionId])
 
-  // Sort items based on selected sort option
-  const sortedItems = useMemo(() => {
-    const itemsCopy = [...items]
-    
-    switch (sortBy) {
-      case 'newest':
-        return itemsCopy.sort((a, b) => {
-          if (!a.created_at && !b.created_at) return 0
-          if (!a.created_at) return 1
-          if (!b.created_at) return -1
-          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-        })
-      case 'oldest':
-        return itemsCopy.sort((a, b) => {
-          if (!a.created_at && !b.created_at) return 0
-          if (!a.created_at) return 1
-          if (!b.created_at) return -1
-          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        })
-      case 'updated_newest':
-        return itemsCopy.sort((a, b) => {
-          const aDate = a.updated_at || a.created_at
-          const bDate = b.updated_at || b.created_at
-          if (!aDate && !bDate) return 0
-          if (!aDate) return 1
-          if (!bDate) return -1
-          return new Date(bDate).getTime() - new Date(aDate).getTime()
-        })
-      case 'updated_oldest':
-        return itemsCopy.sort((a, b) => {
-          const aDate = a.updated_at || a.created_at
-          const bDate = b.updated_at || b.created_at
-          if (!aDate && !bDate) return 0
-          if (!aDate) return 1
-          if (!bDate) return -1
-          return new Date(aDate).getTime() - new Date(bDate).getTime()
-        })
-      default:
-        return itemsCopy
-    }
-  }, [items, sortBy])
+  useEffect(() => { 
+    void load() 
+  }, [sectionId, load])
 
   const loadAttachments = useCallback(async () => {
     if (items.length === 0) return
@@ -172,15 +125,53 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
     }
   }, [items])
 
-  useEffect(() => { 
-    void load() 
-  }, [sectionId, load])
-
   useEffect(() => {
     if (items.length > 0) {
       void loadAttachments()
     }
   }, [items, loadAttachments])
+
+  // Sort items based on selected sort option
+  const sortedItems = useMemo(() => {
+    const itemsCopy = [...items]
+    
+    switch (sortBy) {
+      case 'newest':
+        return itemsCopy.sort((a, b) => {
+          if (!a.created_at && !b.created_at) return 0
+          if (!a.created_at) return 1
+          if (!b.created_at) return -1
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        })
+      case 'oldest':
+        return itemsCopy.sort((a, b) => {
+          if (!a.created_at && !b.created_at) return 0
+          if (!a.created_at) return 1
+          if (!b.created_at) return -1
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        })
+      case 'updated_newest':
+        return itemsCopy.sort((a, b) => {
+          const aDate = a.updated_at || a.created_at
+          const bDate = b.updated_at || b.created_at
+          if (!aDate && !bDate) return 0
+          if (!aDate) return 1
+          if (!bDate) return -1
+          return new Date(bDate).getTime() - new Date(aDate).getTime()
+        })
+      case 'updated_oldest':
+        return itemsCopy.sort((a, b) => {
+          const aDate = a.updated_at || a.created_at
+          const bDate = b.updated_at || b.created_at
+          if (!aDate && !bDate) return 0
+          if (!aDate) return 1
+          if (!bDate) return -1
+          return new Date(aDate).getTime() - new Date(bDate).getTime()
+        })
+      default:
+        return itemsCopy
+    }
+  }, [items, sortBy])
 
   async function add() {
     if (!text.trim()) return
@@ -333,10 +324,10 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
   function MarkdownContent({ noteId, content }: { noteId: string, content: string }) {
     const [embeddedContent, setEmbeddedContent] = useState(content)
     const [loading, setLoading] = useState(false)
+    const noteAttachments = attachments[noteId]
 
     useEffect(() => {
       const embedAttachments = async () => {
-        const noteAttachments = attachments[noteId]
         if (!noteAttachments || noteAttachments.length === 0) {
           setEmbeddedContent(content)
           return
@@ -377,7 +368,7 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
       }
 
       embedAttachments()
-    }, [noteId, content, attachments])
+    }, [noteId, content, noteAttachments])
 
     return (
       <div className="prose prose-sm max-w-none">
@@ -385,10 +376,12 @@ export function ShortNotes({ sectionId }: { sectionId: string }) {
           remarkPlugins={[remarkGfm]}
           components={{
             img: ({ src, alt, title }) => (
-              <img 
-                src={src} 
-                alt={alt} 
+              <Image 
+                src={src || ''} 
+                alt={alt || ''} 
                 title={title}
+                width={800}
+                height={400}
                 className="max-w-full h-auto rounded-lg shadow-sm border border-gray-200 my-2"
                 style={{ maxHeight: '400px', objectFit: 'contain' }}
               />

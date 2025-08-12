@@ -1,6 +1,7 @@
 "use client"
 import { createClient } from '@/lib/supabase/client'
 import { useState, useEffect } from 'react'
+import Image from 'next/image'
 
 interface FileAttachment {
   id: string
@@ -44,7 +45,7 @@ function ImagePreview({ attachment, onClick }: { attachment: FileAttachment, onC
     }
 
     loadImage()
-  }, [attachment.file_path])
+  }, [attachment.file_path, supabase.storage])
 
   if (loading) {
     return (
@@ -69,9 +70,11 @@ function ImagePreview({ attachment, onClick }: { attachment: FileAttachment, onC
 
   return (
     <div className="aspect-video bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
-      <img
-        src={imageUrl}
+      <Image
+        src={imageUrl || ''}
         alt={attachment.file_name}
+        width={400}
+        height={300}
         className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-200"
         onClick={onClick}
       />

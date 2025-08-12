@@ -70,7 +70,7 @@ export function DeleteSection({ sectionId, sectionTitle, moduleId, isAuthenticat
                 Are you sure you want to delete this section?
               </h3>
               <p className="mt-2 text-sm text-gray-600">
-                This will permanently delete <strong>"{sectionTitle}"</strong> and all associated data including:
+                This will permanently delete <strong>&ldquo;{sectionTitle}&rdquo;</strong> and all associated data including:
               </p>
               <ul className="mt-2 text-sm text-gray-600 list-disc list-inside space-y-1">
                 <li>All resources</li>

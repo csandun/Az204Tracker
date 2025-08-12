@@ -149,7 +149,7 @@ export function SectionsWithManagement({
               </svg>
               <p className="text-sm text-gray-500">No sections yet</p>
               {isAuthenticated && (
-                <p className="text-xs text-gray-400">Click "Add" to create your first section</p>
+                <p className="text-xs text-gray-400">Click &ldquo;Add&rdquo; to create your first section</p>
               )}
             </div>
           </li>

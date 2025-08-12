@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 
 type Resource = { id: string; title: string; url: string; type: string }
@@ -21,18 +21,18 @@ export function ResourcesPanel({ moduleId, sectionId }: { moduleId: string; sect
       setUser(user)
     }
     void getUser()
-  }, [])
+  }, [supabase.auth])
 
-  async function load() {
+  const load = useCallback(async () => {
     const { data, error } = await supabase
       .from('resources')
       .select('id,title,url,type')
       .or(`section_id.eq.${sectionId},and(section_id.is.null,module_id.eq.${moduleId})`)
       .order('title', { ascending: true })
     if (!error) setItems(data || [])
-  }
+  }, [moduleId, sectionId, supabase])
 
-  useEffect(() => { void load() }, [moduleId, sectionId])
+  useEffect(() => { void load() }, [load])
 
   async function addResource() {
     setError(null)
