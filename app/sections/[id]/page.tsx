@@ -5,6 +5,7 @@ import { StarRating } from '@/components/StarRating'
 import { ProgressControls } from '@/components/ProgressControls'
 import { ShortNotes } from '@/components/ShortNotes'
 import { Breadcrumbs } from '@/components/Breadcrumbs'
+import { DeleteSection } from '@/components/DeleteSection'
 import { ResourcesPanel } from './ResourcesPanel'
 
 type SectionRating = {
@@ -110,6 +111,14 @@ export default async function SectionDetail({ params }: { params: { id: string }
             {module && <p className="text-gray-700 mt-1">in {module.title}</p>}
           </div>
           <div className="flex flex-col gap-2">
+            {user && (
+              <DeleteSection
+                sectionId={section.id}
+                sectionTitle={section.title}
+                moduleId={section.module_id}
+                isAuthenticated={!!user}
+              />
+            )}
             {isCurrentSection && (
               <span className="text-sm px-3 py-1 rounded-full bg-primary text-white font-medium">
                 Current Section

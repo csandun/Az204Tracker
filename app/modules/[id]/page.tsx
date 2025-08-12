@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import { Breadcrumbs } from '@/components/Breadcrumbs'
-import { SectionCard } from '@/components/SectionCard'
+import { SectionsWithManagement } from '@/components/SectionsWithManagement'
 
 type Section = { id: string; title: string; order: number }
 type Module = { id: string; title: string; description: string | null }
@@ -120,29 +120,14 @@ export default async function ModuleDetail({ params }: { params: { id: string } 
         {module.description && <p className="text-gray-700 mt-2 leading-relaxed">{module.description}</p>}
       </div>
 
-      <section>
-        <h2 className="text-xl font-semibold mb-3 flex items-center gap-2"><span className="inline-block h-3 w-3 rounded-full bg-primary/70" /> Sections</h2>
-        <ul className="space-y-2">
-          {(sections as Section[] | null)?.map((s) => {
-            const rating = ratingsMap.get(s.id)
-            const sectionStatus = sectionProgressMap.get(s.id) || 'not_started'
-            const isCurrentSection = moduleProgress?.current_section_id === s.id
-            
-            return (
-              <SectionCard
-                key={s.id}
-                section={s}
-                status={sectionStatus}
-                isCurrentSection={isCurrentSection}
-                rating={rating}
-              />
-            )
-          })}
-          {(!sections || sections.length === 0) && (
-            <li className="text-gray-700">No sections yet.</li>
-          )}
-        </ul>
-      </section>
+      <SectionsWithManagement
+        moduleId={params.id}
+        initialSections={(sections as Section[]) || []}
+        isAuthenticated={!!user}
+        ratingsMap={ratingsMap}
+        sectionProgressMap={sectionProgressMap}
+        currentSectionId={moduleProgress?.current_section_id || null}
+      />
     </main>
   )
 }
